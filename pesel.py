@@ -1,5 +1,3 @@
-import datetime # zaimportowanie pakietu datetime, żeby można było operować na datach a dokładnie znaleźć ostatni dzień danego m-ca
-
 """
 Deklaracja zmiennych. Tak jak wspominałem, to jest moja subiektywna opinia, ale nie przepadam za takim sposobem deklaracji zmiennych.
 Mimo, że zajmuje to więcej miejsca to wolę deklaracje w stylu
@@ -11,6 +9,8 @@ PESEL_length to długość numeru PESEL. Trzeba pamiętać, że długość numer
 tego typu elementy są numerowane od 0.
 PESEL_weights - tupla z wagami każdej cyfry w numerze PESEL. Tupla, jak mówiłem, różni się od listy tym, że nie można z niej
 nic usunąć, zmienić ani nic do niej dodać
+
+days_31 i days_30 - tuple, w których będą numery miesięcy z 30 dniami i 31 dniami. Wykorzystamy je później do sprawdzenia poprawności daty
 """
 # counters
 total = correct = male = female = 0
@@ -22,6 +22,9 @@ day = month = year = 0
 
 PESEL_length = 11
 PESEL_weigths = (1, 3, 7, 9, 1, 3, 7, 9, 1, 3)
+
+days_31 = (1, 3, 5, 7, 8, 10, 12)
+days_30 = (4, 6, 9, 11)
 
 """
 Funkcja make_year.
@@ -53,33 +56,7 @@ def make_year(m, y):
         y = "19" + y
 
     return int(y)
-"""
-Funkcja last_day.
-Funkcja przyjmuje jako parametry miesiąc i rok.
-Na początek chcemy stworzyć datę "Pierwszy dzień następnego miesiąca".
-Dodajemy do miesiąca 1. Jeśli wyszła suma 13 to znaczy, że jest nowy rok. Więc miesiąc zmieniamy na styczeń (czyli 1)
-I dodajemy do roku 1
 
-Czyli na przykład wywołujemy funkcję z takimi parametrami: last_day(2,2013) (czyli luty 2013 roku). Dodajemy do miesiąca 1.
-Teraz tworzymy datę: 2013-03-01 (czyli 1 dzień następnego miesiąca) - to jest w zmiennej first_of_next_month
-
-timedelta służy do wykonywania działań na datach i czasach. Generalnie, tak jak w realnym życiu, jak masz datę 19-10-2017 to
-nie możed od niej odjąć (albo dodać) po prostu JEDEN. Możesz dodać/odjąć jeden dzień albo miesiąc albo rok. 
-I tym właśnie jest timedelta.
-datetime.timedelta(days=1) mówi tyle, że operujemy jednym dniem. (gdyby były months=1 to, analogicznie, operowalibyśmy jednym miesiącem)
-Więc od tej naszej daty (czyli 01-03-2013) odejmujemy jeden dzień i otrzymujemy datę 2013-02-28. I taką datę zwracamy.
-Warto pamiętać, że zwracamy typ datetime.date
-"""
-def last_day(m, y):
-    m += 1
-    if m == 13:
-        m = 1
-        y += 1
-
-
-    first_of_next_month = datetime.date(y, m, 1)
-    last_of_month = first_of_next_month - datetime.timedelta(days=1)
-    return last_of_month
 
 file = open("1e3.dat", 'r') # otworzenie pliku w trybie odczytu. Przy próbie zapisu wyskoczyłby błąd)
 
@@ -104,18 +81,40 @@ for PESEL in file: # pętla iterująca po pliku linijka po linijce. Nazwa PESEL 
     if month > 12: # sprawdzenie czy numer m-ca się zgadza. Jeśli nie, zwiększamy zmienną, przerywamy aktualną iterację
         invalid_date += 1
         continue
+
     """
-    Sprawdzamy czy dzień jest poprawny (czyli czy nie jest większy niż 30/31 (zależnie od miesiąca) albo warianty z lutym i rokiem przestępnym
-    W zmiennej day znajduje się intiger.
-    Funkcja last_day zwraca datetime.date. Tak jak z dodawaniem/odejmowaniem - nie możesz powiedzieć na przykład, że 1 stycznia 2012 jest
-    większe od 20 (po prostu). Dlatego musimy wyciągnąć sam dzień. Do tego służy atrybut day (i analogicznie month, year, hour itd itd).
-    A, że pojedynczy atrybut w dacie jest intigerem to już możemy spokojnie wykonać porównanie (generalnie można powiedzieć, że data
-    (na przykład wspomniany 2012-01-01) to są trzy liczby całkowite (intiger-intiger-intiger)  
-    A dalej no to jak w poprzednich ifach
+    Sprawdzamy czy miesiąc ma 31 dni czy 30 (czyli sprawdzamy czy numer miesiąca znajduje się w jednej czy w drugiej tupli)
+    i w zależności od wyniku sprawdzamy czy dzień jest większy od 31 lub 30.
+    Jeśli miesiąc nie znajduje się ani w jednej ani w drugiej tupli to znaczy, że mamy do czynienia z lutym i tutaj zaczyna się jazda bez trzymanki.
+    Pokazuję i objaśniam (mam nadzieję, że podstawy logiki znasz ;)):
+
+    Rok przestępny jest wtedy, kiedy spełniony jest jeden z warunków:
+    Rok _jest_ podzielny przez 4 (czyli rok MODULO 4 == 0) I _nie_jest_ podzielny przez 100 (czyli rok MODULO 100 != 0)
+    LUB
+    Rok _jest_ podzielny przez 400 (czyli rok MODULO 400 == 0).
+
+    Jeśli jest spełniony jeden z tych warunków to mamy rok przestępny, czyli luty ma 29 dni. Więc sprawdzamy czy dzień jest większy od 29.
+    Jeśli żaden z tych warunków nie jest spełniony to mamy "normalny" rok, czyli luty ma 28 dni. Więc sprawdzamy czy dzień jest większy od 28.
+
+    I tyle, jeśli chodzi o zmiany.
     """
-    elif day > last_day(month, year).day:
-        invalid_date += 1
-        continue
+    if month in days_31:
+        if day > 31:
+            invalid_date += 1
+            continue
+    elif month in days_30:
+        if day > 30:
+            invalid_date += 1
+            continue
+    else:
+        if (year % 4 == 0 and year % 100 != 0) or (year % 400 == 0):
+            if day > 29:
+                invalid_date += 1
+                continue
+        else:
+            if day > 28:
+                invalid_date += 1
+                continue
        
     """
     Po kolei:
